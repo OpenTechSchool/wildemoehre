@@ -1,0 +1,79 @@
+<DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="./tone.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            transition: all 0.6s;
+            background: #123456;
+        }
+        #signal {
+            position: relative;
+            width: 100%;
+            height: 200px;
+        }
+        #button {
+            position: absolute;
+            width: 60vw;
+            height: 20vh;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            top: 0;
+            margin: auto;
+            border: 1px solid white;
+            color: white;
+            font-size: 30px;
+            background: transparent;
+        }
+    </style>
+</head>
+<body>
+    <button id="button">Press Me</button>
+
+    <script>
+        var lowPassOptions = {
+            frequency: 2000,
+            q: 0.4
+        };
+
+        //create a synth and connect it to the master output (your speakers)
+        var feedbackDelay = new Tone.FeedbackDelay("8n", 0.5).toMaster();
+        var lowPass = new Tone.Filter(
+        {
+            "type":"lowpass",
+            "frequency": lowPassOptions.value,
+            "q": lowPassOptions.q
+        }
+        ).connect(feedbackDelay);
+        var synth = new Tone.PolySynth(6, Tone.Synth, {
+			"oscillator" : {
+				"partials" : [0, 2, 3, 4],
+            }
+		}).connect(lowPass);
+
+        var scale = [];
+        var socket = io();
+        socket.on('buttonpressed', function(msg){
+            console.log('socket-button-pressed', msg)
+            handler(msg.color)
+        });
+        socket.on('scalechange', function(msg){
+            console.log('scalechange', msg);
+            scale = msg.scale;
+        });
+        var $button = document.getElementById('button')
+        var handler = function (color) {
+            document.body.style.backgroundColor = color;
+            //play a middle 'C' for the duration of an 8th note
+            if (scale.length) synth.triggerAttackRelease(scale[Math.floor(Math.random()*scale.length)], '8n')
+        }
+        $button.addEventListener('click', () => {
+            var color = '#' + Math.ceil(Math.random() * 1000)
+            socket.emit('buttonpressed', { color: color });
+        });
+    </script>
+</body>
+</html>
